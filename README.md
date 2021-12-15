@@ -12,4 +12,5 @@
   - [プロセス](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/process.c)  
 
 
-※ 大量の標準出力(1)がされるので、計測時は/dev/nullに捨てること
+※ 大量の標準出力(1)がされるので、計測時は/dev/nullに捨てること  
+例: `$ time ./dpp_thread 1 > /dev/null`
