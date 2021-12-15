@@ -13,4 +13,4 @@
 
 
 ※ 大量の標準出力(1)がされるので、計測時は/dev/nullに捨てること  
-例: `$ time ./dpp_thread 1 > /dev/null`
+例: `$ time ./dpp_thread > /dev/null`
