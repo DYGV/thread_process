@@ -9,5 +9,7 @@
 
 - [哲学者の食事問題](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/dpp.c)
   - [スレッド](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/thread.c)
-  - [プロセス](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/process.c)
+  - [プロセス](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/process.c)  
 
+
+※ 大量の標準出力(1)がされるので、計測時は/dev/nullに捨てること
