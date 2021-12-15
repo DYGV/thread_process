@@ -4,6 +4,12 @@
 #include <string.h>
 #include "pcp.h"
 
+
+static int produce_item();
+static void consume_item(int item);
+static int remove_item(int pos);
+static void insert_item(int item, int pos);
+
 void init_pcp() {
 #ifdef MODE_PROCESS
     buf = mmap(NULL, sizeof(int) * N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -23,7 +29,7 @@ void init_pcp() {
 }
 
 // バッファに入れるものを生成する
-int produce_item() {
+static int produce_item() {
     // 適当なアイテムを作る
     int item = rand() % 100;
     printf("produce item: %d\n", item);
@@ -31,19 +37,19 @@ int produce_item() {
 }
 
 // itemを消費する
-void consume_item(int item) {
+static void consume_item(int item) {
     printf("consume item: %d\n", item);
 }
 
 // バッファからアイテムを取り出す(消費者側から使う)
-int remove_item(int pos) {
+static int remove_item(int pos) {
     printf("remove item: buf[%d]: %d\n", pos, buf[pos]);
     // アイテムをバッファ内から取り出す
     return buf[pos];
 }
 
 // 新たな項目をバッファ内に入れる(生産者側から使う)
-void insert_item(int item, int pos) {
+static void insert_item(int item, int pos) {
     // アイテムをバッファ内に入れる
     buf[pos] = item;
     printf("insert item: buf[%d]: %d\n", pos, buf[pos]);
@@ -53,7 +59,8 @@ void insert_item(int item, int pos) {
 void* producer() {
     int item;
     int buf_pos = 0;
-    while (1) {
+    // while (1) {
+    for (int i = 0; i < 100000; i++) {
         // バッファに入れるものを生成
         item = produce_item();
         // 空バッファ数をデクリメント
@@ -82,11 +89,13 @@ void* producer() {
         sem_post(full);
     }
 }
+
 // バッファ内のアイテムを取り出し、それを使う(消費する)タスク
 void* consumer() {
     int item;
     int buf_pos = 0;
-    while (1) {
+    // while (1) {
+    for (int i = 0; i < 100000; i++) {
         // 詰まっているスロット数をデクリメント
         // full=0であれば、消費するアイテムがないことを意味するので、ここでブロックされる
         sem_wait(full);
@@ -114,5 +123,4 @@ void* consumer() {
         // アイテムに対し何か行う
         consume_item(item);
     }
-
 }

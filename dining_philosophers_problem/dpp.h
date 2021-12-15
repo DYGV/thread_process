@@ -23,10 +23,4 @@ sem_t* mutex;
 
 void* philosopher(void* i);
 void init_philosophers();
-void think(int i);
-void take_forks(int i);
-void eat(int i);
-void put_forks(int i);
-void test(int i);
-
 #endif

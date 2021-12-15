@@ -5,6 +5,13 @@
 #include <sys/mman.h>
 #include "dpp.h"
 
+static void think(int i);
+static void take_forks(int i);
+static void eat(int i);
+static void put_forks(int i);
+static void test(int i);
+
+
 void init_philosophers() {
     int is_inter_process = 0;
 #ifdef MODE_PROCESS
@@ -20,10 +27,20 @@ void init_philosophers() {
     }
 }
 
+static void cleanup(int p) {
+    sem_post(&s[p]);
+#ifdef MODE_PROCESS
+    sem_post(mutex);
+#elif defined MODE_THREAD
+    pthread_mutex_unlock(&mutex);
+#endif
+}
+
 void* philosopher(void* i) {
     // intへのポインタ型にキャストしてから間接参照してpへ値を入れる
     int p = *((int*)i);
-    while (1) {
+    // while (1) {
+    for (int j = 0; j < 100000; j++) {
         // 思考する
         think(p);
         // 2本のフォークを取るか、あるいはブロック
@@ -33,14 +50,16 @@ void* philosopher(void* i) {
         // 両方のフォークをテーブルに戻す
         put_forks(p);
     }
+
+    // ループ終了時にブロックされているタスク(哲学者)があってもwait(join)で無限に待つことにならないように
+    cleanup(p);
 }
 
-
-void think(int i) {
+static void think(int i) {
     printf("philosopher %d is thinking.\n", i);
 }
 
-void take_forks(int i) {
+static void take_forks(int i) {
 #ifdef MODE_PROCESS
     sem_wait(mutex);
 #elif defined MODE_THREAD
@@ -61,12 +80,12 @@ void take_forks(int i) {
     sem_wait(&s[i]);
 }
 
-void eat(int i) {
+static void eat(int i) {
     printf("philosopher %d is eating spaghetti.\n", i);
 }
 
 
-void put_forks(int i) {
+static void put_forks(int i) {
 #ifdef MODE_PROCESS
     sem_wait(mutex);
 #elif defined MODE_THREAD
@@ -87,7 +106,7 @@ void put_forks(int i) {
 #endif
 }
 
-void test(int i) {
+static void test(int i) {
     // 哲学者iがフォークを取りたがっており(空腹状態で)、
     // その哲学者iの左隣、右隣が食事中でないなら
     // 哲学者iの状態をEATINGにすることができる(フォークが取れる)
