@@ -56,7 +56,7 @@ static void cleanup(int p) {
 #endif
 }
 
-void lock(void* mutex) {
+void lock_mutex() {
 #ifdef MODE_PROCESS
     sem_wait(mutex);
 #elif defined MODE_THREAD
@@ -64,7 +64,7 @@ void lock(void* mutex) {
 #endif
 }
 
-void unlock(void* mutex) {
+void unlock_mutex() {
 #ifdef MODE_PROCESS
     sem_post(mutex);
 #elif defined MODE_THREAD
@@ -97,13 +97,13 @@ static void think(int i) {
 }
 
 static void take_forks(int i) {
-    lock(mutex);
+    lock_mutex();
     // 哲学者iが空腹であることを記憶しておく
     state[i] = HUNGRY;
     printf("philosopher %d is hungry.\n", i);
     // フォークを取ろうとする(もし取れなくてもここでブロックはされない)
     test(i);
-    unlock(mutex);
+    unlock_mutex();
     // 哲学者iがフォークを持っているかを示すセマフォ
     // s[i]が0であればフォークを取れていないことを意味するのでここでブロック
     sem_wait(&s[i]);
@@ -115,7 +115,7 @@ static void eat(int i) {
 
 
 static void put_forks(int i) {
-    lock(mutex);
+    lock_mutex(mutex);
     // 哲学者iが食事を終了
     state[i] = THINKING;
     printf("philosopher %d put forks.\n", i);
@@ -124,7 +124,7 @@ static void put_forks(int i) {
     // 右隣の哲学者が今食事できるか調べる
     test(RIGHT(i));
     // クリティカルリージョンから出る
-    unlock(mutex);
+    unlock_mutex(mutex);
 }
 
 static void test(int i) {
