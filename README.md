@@ -11,6 +11,13 @@
   - [スレッド](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/thread.c)
   - [プロセス](https://github.com/DYGV/thread_process/blob/master/dining_philosophers_problem/process.c)  
 
-
+## ビルド
+```console
+$ cd <simple/, producer_consumer_problem/ or dining_philosophers_problem/>
+$ mkdir build
+$ cd build/
+$ cmake ..
+$ cmake --build .
+```
 ※ 大量の標準出力(1)がされるので、計測時は/dev/nullに捨てること  
 例: `$ time ./dpp_thread > /dev/null`
