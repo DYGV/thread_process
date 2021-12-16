@@ -1,3 +1,8 @@
+/**
+ * @file dpp.c
+ * 哲学者の食事問題のロジック部分
+ * プロセスでもスレッドでも利用できるようにする
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,12 +18,15 @@
 #define HUNGRY 1
 #define EATING 2
 
+static void lock_mutex();
+static void unlock_mutex();
 static void think(int i);
 static void take_forks(int i);
 static void eat(int i);
 static void put_forks(int i);
 static void test(int i);
 
+// セマフォと共有資源のアドレスを保持する
 #ifdef MODE_THREAD
 int state[N] = {0};
 pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
@@ -30,11 +38,13 @@ sem_t* s;
 sem_t* mutex;
 #endif
 
+/** 哲学者の食事問題の初期化をする関数 */
 void init_philosophers(void) {
     int is_inter_process = 0;
 #ifdef MODE_PROCESS
     is_inter_process = 1;
     state = mmap(NULL, sizeof(int) * N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    // 共有資源を0埋めしておく
     memset(state, 0, sizeof(int)*N);
     s = mmap(NULL, sizeof(sem_t) * N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -42,11 +52,13 @@ void init_philosophers(void) {
 #elif defined MODE_THREAD
     mutex = &mutex_;
 #endif
+    // 哲学者ごとのフォークに関するセマフォを0で初期化
     for (int i = 0; i < N; i++) {
         sem_init(&s[i], is_inter_process, 0);
     }
 }
 
+/** アップ操作をして他プロセス(スレッド)も終了できるようにする関数(デッドロック防止) */
 static void cleanup(int p) {
     sem_post(&s[p]);
 #ifdef MODE_PROCESS
@@ -56,7 +68,12 @@ static void cleanup(int p) {
 #endif
 }
 
-void lock_mutex() {
+/**
+ * ミューテックスのダウン操作をする関数
+ * プロセスではセマフォとして操作、スレッドではミューテックスとして操作しているが
+ * 実質的に行っていることは同じである。
+ */
+static void lock_mutex() {
 #ifdef MODE_PROCESS
     sem_wait(mutex);
 #elif defined MODE_THREAD
@@ -64,7 +81,12 @@ void lock_mutex() {
 #endif
 }
 
-void unlock_mutex() {
+/**
+ * ミューテックスのアップ操作をする関数
+ * プロセスではセマフォとして操作、スレッドではミューテックスとして操作しているが
+ * 実質的に行っていることは同じである。
+ */
+static void unlock_mutex() {
 #ifdef MODE_PROCESS
     sem_post(mutex);
 #elif defined MODE_THREAD
@@ -72,6 +94,7 @@ void unlock_mutex() {
 #endif
 }
 
+/** 哲学者が行う動作を順に実行する関数 */
 void* philosopher(void* i) {
     // intへのポインタ型にキャストしてから間接参照してpへ値を入れる
     int p = *((int*)i);
@@ -92,10 +115,12 @@ void* philosopher(void* i) {
     return NULL;
 }
 
+/** 哲学者が思考をする動作 */
 static void think(int i) {
     printf("philosopher %d is thinking.\n", i);
 }
 
+/** 哲学者がフォークを取ろうとする動作 */
 static void take_forks(int i) {
     lock_mutex();
     // 哲学者iが空腹であることを記憶しておく
@@ -109,14 +134,15 @@ static void take_forks(int i) {
     sem_wait(&s[i]);
 }
 
+/** 哲学者が食事をする動作 */
 static void eat(int i) {
     printf("philosopher %d is eating spaghetti.\n", i);
 }
 
-
+/** 哲学者が食事を終え、フォークをテーブルに戻す動作 */
 static void put_forks(int i) {
     lock_mutex(mutex);
-    // 哲学者iが食事を終了
+    // 哲学者iが食事を終了し、思考に耽る
     state[i] = THINKING;
     printf("philosopher %d put forks.\n", i);
     // 左隣の哲学者が今食事できるか調べる
@@ -127,6 +153,7 @@ static void put_forks(int i) {
     unlock_mutex(mutex);
 }
 
+/** フォークを取ろうと試みる関数 */
 static void test(int i) {
     // 哲学者iがフォークを取りたがっており(空腹状態で)、
     // その哲学者iの左隣、右隣が食事中でないなら

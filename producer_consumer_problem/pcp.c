@@ -1,3 +1,9 @@
+/**
+ * @file pcp.c
+ * 生産者・消費者問題のロジック部分
+ * プロセスでもスレッドでも扱えるようにする
+ */
+
 #include <stdio.h>
 #include <sys/mman.h>
 #include <stdlib.h>
@@ -7,13 +13,17 @@
 #include <string.h>
 #include "pcp.h"
 
+//! バッファサイズ
 #define N 100
 
+static void lock_mutex();
+static void unlock_mutex();
 static int produce_item(void);
 static void consume_item(int item);
 static int remove_item(int pos);
 static void insert_item(int item, int pos);
 
+// セマフォと共有資源のアドレスを保持する
 #ifdef MODE_THREAD
 pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t* mutex;
@@ -27,9 +37,11 @@ sem_t* mutex;
 int* buf;
 #endif
 
+/** 生産者・消費者問題の初期化をする関数 */
 void init_pcp(void) {
 #ifdef MODE_PROCESS
     buf = mmap(NULL, sizeof(int) * N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    // 共有資源を0埋めしておく
     memset(buf, 0, sizeof(int)*N);
     empty = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     full = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -46,7 +58,12 @@ void init_pcp(void) {
 #endif
 }
 
-void lock_mutex() {
+/**
+ * ミューテックスのダウン操作をする関数
+ * プロセスではセマフォとして操作、スレッドではミューテックスとして操作しているが
+ * 実質的に行っていることは同じである。
+ */
+static void lock_mutex() {
 #ifdef MODE_PROCESS
     sem_wait(mutex);
 #elif defined MODE_THREAD
@@ -54,7 +71,12 @@ void lock_mutex() {
 #endif
 }
 
-void unlock_mutex() {
+/**
+ * ミューテックスのアップ操作をする関数
+ * プロセスではセマフォとして操作、スレッドではミューテックスとして操作しているが
+ * 実質的に行っていることは同じである。
+ */
+static void unlock_mutex() {
 #ifdef MODE_PROCESS
     sem_post(mutex);
 #elif defined MODE_THREAD
@@ -62,7 +84,7 @@ void unlock_mutex() {
 #endif
 }
 
-// バッファに入れるものを生成する
+/** バッファに入れるものを生成する関数 */
 static int produce_item(void) {
     // 適当なアイテムを作る
     int item = rand() % 100;
@@ -70,26 +92,26 @@ static int produce_item(void) {
     return item;
 }
 
-// itemを消費する
+/** itemを消費する関数 */
 static void consume_item(int item) {
     printf("consume item: %d\n", item);
 }
 
-// バッファからアイテムを取り出す(消費者側から使う)
+/** バッファからアイテムを取り出す(消費者側から使う)関数 */
 static int remove_item(int pos) {
     printf("remove item: buf[%d]: %d\n", pos, buf[pos]);
     // アイテムをバッファ内から取り出す
     return buf[pos];
 }
 
-// 新たな項目をバッファ内に入れる(生産者側から使う)
+/** 新たな項目をバッファ内に入れる(生産者側から使う)関数 */
 static void insert_item(int item, int pos) {
     // アイテムをバッファ内に入れる
     buf[pos] = item;
     printf("insert item: buf[%d]: %d\n", pos, buf[pos]);
 }
 
-// アイテムを作り(生産し)、バッファ内にそれを入れるタスク
+/** アイテムを作り(生産し)、バッファ内にそれを入れる関数 */
 void* producer() {
     int item;
     int buf_pos = 0;
@@ -117,7 +139,7 @@ void* producer() {
     return NULL;
 }
 
-// バッファ内のアイテムを取り出し、それを使う(消費する)タスク
+/** バッファ内のアイテムを取り出し、それを使う(消費する)関数 */
 void* consumer() {
     int item;
     int buf_pos = 0;
