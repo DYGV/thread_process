@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.1)
 enable_language(C)
 project(ProducerConsumerProblem)
 
+set(CMAKE_C_FLAGS "-g3 -Wall")
+
 add_library(lib_pcp_thread STATIC pcp.c)
 target_compile_definitions(lib_pcp_thread PRIVATE MODE_THREAD)
 target_link_libraries(lib_pcp_thread PRIVATE pthread)

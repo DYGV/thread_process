@@ -3,7 +3,15 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <semaphore.h>
+#include <pthread.h>
 #include "dpp.h"
+
+#define LEFT(i) (i+N-1) % N
+#define RIGHT(i) (i+1) % N
+#define THINKING 0
+#define HUNGRY 1
+#define EATING 2
 
 static void think(int i);
 static void take_forks(int i);
@@ -11,8 +19,17 @@ static void eat(int i);
 static void put_forks(int i);
 static void test(int i);
 
+#ifdef MODE_THREAD
+int state[N] = {0};
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+sem_t s[N];
+#elif defined MODE_PROCESS
+int* state;
+sem_t* s;
+sem_t* mutex;
+#endif
 
-void init_philosophers() {
+void init_philosophers(void) {
     int is_inter_process = 0;
 #ifdef MODE_PROCESS
     is_inter_process = 1;
@@ -53,6 +70,11 @@ void* philosopher(void* i) {
 
     // ループ終了時にブロックされているタスク(哲学者)があってもwait(join)で無限に待つことにならないように
     cleanup(p);
+#ifdef MODE_PROCESS
+    _exit(0);
+#elif defined MODE_THREAD
+    pthread_exit(0);
+#endif
 }
 
 static void think(int i) {

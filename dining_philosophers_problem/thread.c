@@ -1,8 +1,8 @@
+#include <pthread.h>
 #include "dpp.h"
 
-int main() {
+int main(void) {
     init_philosophers();
-
     pthread_t thread_id[5];
     int i;
     for (i = 0; i < N; i++) {

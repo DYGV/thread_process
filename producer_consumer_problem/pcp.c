@@ -1,16 +1,32 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <semaphore.h>
+#include <pthread.h>
 #include <string.h>
 #include "pcp.h"
 
+#define N 100
 
-static int produce_item();
+static int produce_item(void);
 static void consume_item(int item);
 static int remove_item(int pos);
 static void insert_item(int item, int pos);
 
-void init_pcp() {
+#ifdef MODE_THREAD
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+sem_t empty_, *empty;
+sem_t full_, *full;
+int buf[N];
+#elif defined MODE_PROCESS
+sem_t* empty;
+sem_t* full;
+sem_t* mutex;
+int* buf;
+#endif
+
+void init_pcp(void) {
 #ifdef MODE_PROCESS
     buf = mmap(NULL, sizeof(int) * N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     memset(buf, 0, sizeof(int)*N);
@@ -29,7 +45,7 @@ void init_pcp() {
 }
 
 // バッファに入れるものを生成する
-static int produce_item() {
+static int produce_item(void) {
     // 適当なアイテムを作る
     int item = rand() % 100;
     printf("produce item: %d\n", item);
@@ -88,6 +104,11 @@ void* producer() {
         // 詰まっているスロット数をインクリメント(full上でブロックされているタスクがあれば起こす)
         sem_post(full);
     }
+#ifdef MODE_PROCESS
+    _exit(0);
+#elif defined MODE_THREAD
+    pthread_exit(0);
+#endif
 }
 
 // バッファ内のアイテムを取り出し、それを使う(消費する)タスク
@@ -123,4 +144,9 @@ void* consumer() {
         // アイテムに対し何か行う
         consume_item(item);
     }
+#ifdef MODE_PROCESS
+        _exit(0);
+#elif defined MODE_THREAD
+        pthread_exit(0);
+#endif
 }
