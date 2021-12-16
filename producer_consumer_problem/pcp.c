@@ -15,7 +15,8 @@ static int remove_item(int pos);
 static void insert_item(int item, int pos);
 
 #ifdef MODE_THREAD
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t* mutex;
 sem_t empty_, *empty;
 sem_t full_, *full;
 int buf[N];
@@ -41,6 +42,23 @@ void init_pcp(void) {
     sem_init(&full_, 0, 0);
     empty = &empty_;
     full = &full_;
+    mutex = &mutex_;
+#endif
+}
+
+void lock(void* mutex) {
+#ifdef MODE_PROCESS
+    sem_wait((sem_t*)mutex);
+#elif defined MODE_THREAD
+    pthread_mutex_lock((pthread_mutex_t*)mutex);
+#endif
+}
+
+void unlock(void* mutex) {
+#ifdef MODE_PROCESS
+    sem_post((sem_t*)mutex);
+#elif defined MODE_THREAD
+    pthread_mutex_unlock((pthread_mutex_t*)mutex);
 #endif
 }
 
@@ -84,19 +102,11 @@ void* producer() {
         sem_wait(empty);
         // mutexをロック状態にする = クリティカルリージョンへのアクセス権を得る
         // すでにロックされていれば他のタスクがクリティカルリージョンに入っていることを意味するので、ここでブロックされる
-#ifdef MODE_PROCESS
-        sem_wait(mutex);
-#elif defined MODE_THREAD
-        pthread_mutex_lock(&mutex);
-#endif
+        lock(mutex);
         // 新たな項目をバッファ内に入れる
         insert_item(item, buf_pos);
         // クリティカルリージョンから出たので、アクセス権を放棄する(mutex上でブロックされているタスクがあれば起こす)
-#ifdef MODE_PROCESS
-        sem_post(mutex);
-#elif defined MODE_THREAD
-        pthread_mutex_unlock(&mutex);
-#endif
+        unlock(mutex);
         // インクリメントした値がバッファサイズ以上なら0に戻す
         if (++buf_pos >= N) {
             buf_pos = 0;
@@ -104,11 +114,7 @@ void* producer() {
         // 詰まっているスロット数をインクリメント(full上でブロックされているタスクがあれば起こす)
         sem_post(full);
     }
-#ifdef MODE_PROCESS
-    _exit(0);
-#elif defined MODE_THREAD
-    pthread_exit(0);
-#endif
+    return NULL;
 }
 
 // バッファ内のアイテムを取り出し、それを使う(消費する)タスク
@@ -122,19 +128,11 @@ void* consumer() {
         sem_wait(full);
         // mutexをロック状態にする = クリティカルリージョンへのアクセス権を得る
         // すでにロックあれば他のタスクがクリティカルリージョンに入っていることを意味するので、ここでブロックされる
-#ifdef MODE_PROCESS
-        sem_wait(mutex);
-#elif defined MODE_THREAD
-        pthread_mutex_lock(&mutex);
-#endif
+        lock(mutex);
         // アイテムを取り出す
         item = remove_item(buf_pos);
         // クリティカルリージョンから出たので、アクセス権を放棄する(mutex上でブロックされているタスクがあれば起こす)
-#ifdef MODE_PROCESS
-        sem_post(mutex);
-#elif defined MODE_THREAD
-        pthread_mutex_unlock(&mutex);
-#endif
+        unlock(mutex);
         // インクリメントした値がバッファサイズ以上なら0に戻す
         if (++buf_pos >= N) {
             buf_pos = 0;
@@ -144,9 +142,5 @@ void* consumer() {
         // アイテムに対し何か行う
         consume_item(item);
     }
-#ifdef MODE_PROCESS
-        _exit(0);
-#elif defined MODE_THREAD
-        pthread_exit(0);
-#endif
+    return NULL;
 }

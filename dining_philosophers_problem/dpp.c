@@ -21,7 +21,8 @@ static void test(int i);
 
 #ifdef MODE_THREAD
 int state[N] = {0};
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t* mutex;
 sem_t s[N];
 #elif defined MODE_PROCESS
 int* state;
@@ -38,6 +39,8 @@ void init_philosophers(void) {
     s = mmap(NULL, sizeof(sem_t) * N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     sem_init(mutex, 1, 1);
+#elif defined MODE_THREAD
+    mutex = &mutex_;
 #endif
     for (int i = 0; i < N; i++) {
         sem_init(&s[i], is_inter_process, 0);
@@ -49,7 +52,23 @@ static void cleanup(int p) {
 #ifdef MODE_PROCESS
     sem_post(mutex);
 #elif defined MODE_THREAD
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(mutex);
+#endif
+}
+
+void lock(void* mutex) {
+#ifdef MODE_PROCESS
+    sem_wait(mutex);
+#elif defined MODE_THREAD
+    pthread_mutex_lock(mutex);
+#endif
+}
+
+void unlock(void* mutex) {
+#ifdef MODE_PROCESS
+    sem_post(mutex);
+#elif defined MODE_THREAD
+    pthread_mutex_unlock(mutex);
 #endif
 }
 
@@ -70,11 +89,7 @@ void* philosopher(void* i) {
 
     // ループ終了時にブロックされているタスク(哲学者)があってもwait(join)で無限に待つことにならないように
     cleanup(p);
-#ifdef MODE_PROCESS
-    _exit(0);
-#elif defined MODE_THREAD
-    pthread_exit(0);
-#endif
+    return NULL;
 }
 
 static void think(int i) {
@@ -82,21 +97,13 @@ static void think(int i) {
 }
 
 static void take_forks(int i) {
-#ifdef MODE_PROCESS
-    sem_wait(mutex);
-#elif defined MODE_THREAD
-    pthread_mutex_lock(&mutex);
-#endif
+    lock(mutex);
     // 哲学者iが空腹であることを記憶しておく
     state[i] = HUNGRY;
     printf("philosopher %d is hungry.\n", i);
     // フォークを取ろうとする(もし取れなくてもここでブロックはされない)
     test(i);
-#ifdef MODE_PROCESS
-    sem_post(mutex);
-#elif defined MODE_THREAD
-    pthread_mutex_unlock(&mutex);
-#endif
+    unlock(mutex);
     // 哲学者iがフォークを持っているかを示すセマフォ
     // s[i]が0であればフォークを取れていないことを意味するのでここでブロック
     sem_wait(&s[i]);
@@ -108,11 +115,7 @@ static void eat(int i) {
 
 
 static void put_forks(int i) {
-#ifdef MODE_PROCESS
-    sem_wait(mutex);
-#elif defined MODE_THREAD
-    pthread_mutex_lock(&mutex);
-#endif
+    lock(mutex);
     // 哲学者iが食事を終了
     state[i] = THINKING;
     printf("philosopher %d put forks.\n", i);
@@ -121,11 +124,7 @@ static void put_forks(int i) {
     // 右隣の哲学者が今食事できるか調べる
     test(RIGHT(i));
     // クリティカルリージョンから出る
-#ifdef MODE_PROCESS
-    sem_post(mutex);
-#elif defined MODE_THREAD
-    pthread_mutex_unlock(&mutex);
-#endif
+    unlock(mutex);
 }
 
 static void test(int i) {
