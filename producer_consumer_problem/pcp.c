@@ -14,7 +14,7 @@
 #include "pcp.h"
 
 //! バッファサイズ
-#define N 100
+#define N 10000
 
 static void lock_mutex();
 static void unlock_mutex();
