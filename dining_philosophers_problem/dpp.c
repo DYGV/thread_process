@@ -58,16 +58,6 @@ void init_philosophers(void) {
     }
 }
 
-/** アップ操作をして他プロセス(スレッド)も終了できるようにする関数(デッドロック防止) */
-static void cleanup(int p) {
-    sem_post(&s[p]);
-#ifdef MODE_PROCESS
-    sem_post(mutex);
-#elif defined MODE_THREAD
-    pthread_mutex_unlock(mutex);
-#endif
-}
-
 /**
  * ミューテックスのダウン操作をする関数
  * プロセスではセマフォとして操作、スレッドではミューテックスとして操作しているが
@@ -109,9 +99,6 @@ void* philosopher(void* i) {
         // 両方のフォークをテーブルに戻す
         put_forks(p);
     }
-
-    // ループ終了時にブロックされているタスク(哲学者)があってもwait(join)で無限に待つことにならないように
-    cleanup(p);
     return NULL;
 }
 
@@ -141,7 +128,7 @@ static void eat(int i) {
 
 /** 哲学者が食事を終え、フォークをテーブルに戻す動作 */
 static void put_forks(int i) {
-    lock_mutex(mutex);
+    lock_mutex();
     // 哲学者iが食事を終了し、思考に耽る
     state[i] = THINKING;
     printf("philosopher %d put forks.\n", i);
@@ -150,7 +137,7 @@ static void put_forks(int i) {
     // 右隣の哲学者が今食事できるか調べる
     test(RIGHT(i));
     // クリティカルリージョンから出る
-    unlock_mutex(mutex);
+    unlock_mutex();
 }
 
 /** フォークを取ろうと試みる関数 */

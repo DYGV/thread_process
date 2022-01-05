@@ -2,13 +2,16 @@
 #include "dpp.h"
 
 int main(void) {
-    init_philosophers();
-    pthread_t thread_id[5];
+    pthread_t thread_id[N];
+    int phseq[N];
     int i;
-    for (i = 0; i < N; i++) {
-        pthread_create(&thread_id[i], NULL, philosopher, &i);
-    }
 
+    init_philosophers();
+
+    for (i = 0; i < N; i++) {
+        phseq[i] = i;
+        pthread_create(&thread_id[i], NULL, philosopher, &phseq[i]);
+    }
     for (i = 0; i < N; i++) {
         pthread_join(thread_id[i], NULL);
     }

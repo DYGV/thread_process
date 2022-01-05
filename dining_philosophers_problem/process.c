@@ -3,8 +3,8 @@
 #include "dpp.h"
 
 int main(void) {
-    init_philosophers();
     int i;
+    init_philosophers();
     for (i = 0; i < N; i++) {
         if (fork() == 0) {
             philosopher(&i);
