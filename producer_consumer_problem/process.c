@@ -1,7 +1,6 @@
 /**
  * @file process_producer_consumer_problem.c
  * 生産者・消費者問題のプロセスバージョン
- * 生産者100人、消費者100人作ってみる
  */
 
 #include <sys/wait.h>
@@ -14,7 +13,7 @@ int main() {
     // 複数いる生産者と消費者はこの商品棚を使う
     init_pcp();
     // それぞれのプロセスでexitしないとそれぞれの子プロセスでforkを呼ぶことを繰り返してしまうので注意(プログラム開始時のプロセス以外はループ処理をしないようにする)
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 8; i++) {
         if (fork() == 0) {
             producer();
             exit(0);
@@ -23,7 +22,7 @@ int main() {
             exit(0);
         }
     }
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 16; i++) {
         wait(NULL);
     }
     return 0;
